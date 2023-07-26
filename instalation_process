@@ -1,0 +1,66 @@
+# repozytoria NVIDIA
+export DISTRO=ubuntu2004
+export ARCHITECTURE=x86_64
+sudo add-apt-repository ppa:graphics-drivers
+sudo apt-key adv --fetch-keys "https://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}/${ARCHITECTURE}/7fa2af80.pub"
+sudo apt-key adv --fetch-keys "https://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}/${ARCHITECTURE}/3bf863cc.pub"
+sudo bash -c "echo deb\ http://developer.download.nvidia.com/compute/cuda/repos/${DISTRO}/${ARCHITECTURE}/\ / > /etc/apt/sources.list.d/cuda.list" 
+sudo bash -c "echo deb\ http://developer.download.nvidia.com/compute/machine-learning/repos/${DISTRO}/${ARCHITECTURE}\ / > /etc/apt/sources.list.d/cuda_learn.list"
+sudo apt update
+
+# instalacja CUDA
+sudo apt install --no-install-recommends cuda-drivers=470.199.02-1 cuda-11-2 libcudnn8-dev=8.1.1.33-1+cuda11.2
+sudo reboot
+nvidia-smi
+
+# modyfikacja .bashrc
+vim ~/.bashrc
+#if [ -d "/usr/local/cuda-11.2/bin/" ]; then
+#    export PATH=/usr/local/cuda-11.2/bin${PATH:+:${PATH}}
+#    export LD_LIBRARY_PATH=/usr/local/cuda-11.2/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+#fi
+source ~/.bashrc
+nvcc --version
+
+# pyenv + Python 3.9
+sudo apt install build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+curl https://pyenv.run | bash
+
+vim ~/.bashrc
+#export PYENV_ROOT="$HOME/.pyenv"
+#command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
+#eval "$(pyenv init -)"
+source ~/.bashrc
+
+pyenv install 3.9
+pyenv global 3.9
+python --version
+
+# Pytorch - zależności
+sudo apt install libmkl-dev libuv1-dev
+pip install cmake
+cmake --version
+
+# Pytorch - kod źródłowy
+git clone https://github.com/pytorch/pytorch.git
+cd pytorch
+git checkout "v2.0.1"
+git submodule sync
+git submodule update --init --recursive
+
+# Pytorch - modyfikacja pliku
+# zamienić nvmlProcessInfo_v1_t na nvmlProcessInfo_t
+# https://github.com/pytorch/pytorch/issues/100618
+sed -i 's/nvmlProcessInfo_v1_t/nvmlProcessInfo_t/g' ~/pytorch/c10/cuda/CUDACachingAllocator.cpp
+
+# Pytorch - kompilacja
+pip install -r requirements.txt
+python setup.py build -j8
+python setup.py install
+
+# StyleGAN 2
+cd
+pip install click requests tqdm pyspng ninja pillow imageio-ffmpeg==0.4.3
+git clone https://github.com/NVlabs/stylegan2-ada-pytorch.git
+cd stylegan2-ada-pytorch/
+python generate.py --outdir=out --trunc=1 --seeds=85,265,297,849 --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/metfaces.pkl
